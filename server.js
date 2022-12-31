@@ -2,6 +2,8 @@ const express = require('express');
 const connectDB = require('./db');
 const User = require('./models/User');
 const bcrypt = require('bcryptjs');
+var jwt = require('jsonwebtoken');
+// const { expressjwt: jwt } = require('express-jwt');
 
 const app = express();
 app.use(express.json());
@@ -31,53 +33,47 @@ app.post('/register', async (req, res, next) => {
   }
 });
 
-// app.post('/login', async (req, res, next) => {
-//   const {email, password} = req.body
-//   try {
-//     const user = await User.findOne({ email });
-    
-//     console.log('login', user);
-//     if (!user) {
-//       return res.status(404).json({ message: 'Invalid credential' });
-//     }
-//     const isMatchPassword = await bcrypt.compare(password, user.password);
-//     if (!isMatchPassword) {
-//       return res.status(404).json({ message: 'Invalid credential' });
-//     }
-//     delete user.password;
-//     return res.status(200).json({ message: 'login successful', user });
-//   } catch (e) {
-//     next(e)
-//   }
-// });
-
 app.post('/login', async (req, res, next) => {
-	const { email, password } = req.body;
-	try {
-		const user = await User.findOne({ email });
+  const { email, password } = req.body;
+  try {
+    const user = await User.findOne({ email });
 
-		if (!user) {
-			return res.status(400).json({ message: 'Invalid Credential' });
-		}
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid Credential' });
+    }
 
-		const isMatch = await bcrypt.compare(password, user.password);
-		if (!isMatch) {
-			return res.status(400).json({ message: 'Invalid Credential' });
-		}
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid Credential' });
+    }
 
-		delete user._doc.password;
-		return res.status(200).json({ message: 'Login Successful', user });
-	} catch (e) {
-		next(e);
-	}
+    delete user._doc.password;
+
+    const token = jwt.sign(user._doc, 'secret-key', {expiresIn: '2h'});
+
+    return res.status(200).json({ message: 'Login Successful', token });
+  } catch (e) {
+    next(e);
+  }
 });
 
 app.use((err, req, res, next) => {
   console.log(err);
-  res.status(500).json({ message: 'server error' });
+  return res.status(500).json({ message: 'server error' });
 });
 app.get('/', (_req, res) => {
-  res.json({ message: 'success' });
+  return res.json({ message: 'success' });
+});
+
+app.get('/private', (req, res) => {
+  // console.log(req.getHeaders())
+  // if(!req.headers.authorization){
+  //   return res.status(401).json({message: 'Invalid authorization'})
+  // }
+  return res.status(200).json({ message: 'this is private route' });
+});
+app.get('/public', (_req, res) => {
+  return res.status(200).json({ message: 'this is public route' });
 });
 
 connectDB('mongodb://localhost:27017/attendance-db')
